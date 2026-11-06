@@ -2,10 +2,11 @@ from fastapi import FastAPI, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 
-from database import get_db
+from database import engine, Base, get_db
 from models import Product
 
 app = FastAPI(title="ShopSphere API")
+Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
