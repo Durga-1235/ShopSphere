@@ -1,6 +1,11 @@
+@"
+node_modules/
+**/node_modules/
+venv/
+**/venv/
 .env
-backend/venv/
-backend/__pycache__/
-*.pyc
-frontend/node_modules/
-frontend/dist/
+**/.env
+__pycache__/
+*.py[cod]
+dist/
+"@ | Set-Content .gitignore
