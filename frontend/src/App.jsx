@@ -1,4 +1,8 @@
-import { useEffect, useState } from 'react'
+
+import { useEffect, useMemo, useState } from 'react'
+import './App.css'
+
+const heroImage = 'https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=1800&q=90'
 
 function App() {
   const [products, setProducts] = useState([])
@@ -8,6 +12,7 @@ function App() {
   const [category, setCategory] = useState('All')
   const [showCart, setShowCart] = useState(false)
   const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
 
   useEffect(() => {
     fetch('http://127.0.0.1:8000/products')
@@ -16,11 +21,11 @@ function App() {
         return res.json()
       })
       .then(data => setProducts(data))
-      .catch(() => alert('Backend connection failed'))
+      .catch(() => setError(true))
       .finally(() => setLoading(false))
   }, [])
 
-  const addToCart = (product) => {
+  const addToCart = product => {
     setCart(prev => {
       const existing = prev.find(item => item.id === product.id)
       if (existing) {
@@ -34,25 +39,24 @@ function App() {
             : item
         )
       }
+      if (product.stock < 1) return prev
       return [...prev, { ...product, quantity: 1 }]
     })
   }
 
   const updateQuantity = (id, amount) => {
-    setCart(prev =>
-      prev.map(item =>
-        item.id === id
-          ? { ...item, quantity: Math.max(1, Math.min(item.stock, item.quantity + amount)) }
-          : item
-      )
-    )
+    setCart(prev => prev.map(item =>
+      item.id === id
+        ? { ...item, quantity: Math.max(1, Math.min(item.stock, item.quantity + amount)) }
+        : item
+    ))
   }
 
-  const removeFromCart = (id) => {
+  const removeFromCart = id => {
     setCart(prev => prev.filter(item => item.id !== id))
   }
 
-  const toggleWishlist = (product) => {
+  const toggleWishlist = product => {
     setWishlist(prev =>
       prev.some(item => item.id === product.id)
         ? prev.filter(item => item.id !== product.id)
@@ -61,162 +65,253 @@ function App() {
   }
 
   const totalItems = cart.reduce((sum, item) => sum + item.quantity, 0)
-  const totalPrice = cart.reduce(
-    (sum, item) => sum + item.price * item.quantity, 0
-  )
+  const totalPrice = cart.reduce((sum, item) => sum + item.price * item.quantity, 0)
 
-  const filteredProducts = products.filter(product =>
+  const filteredProducts = useMemo(() => products.filter(product =>
     product.name.toLowerCase().includes(search.toLowerCase()) &&
     (category === 'All' || product.category === category)
-  )
+  ), [products, search, category])
+
+  const categoryItems = [
+    { name: 'All', icon: '✳', subtitle: 'Explore everything' },
+    { name: 'Fruits', icon: '🍎', subtitle: 'Nature’s sweetness' },
+    { name: 'Vegetables', icon: '🥬', subtitle: 'Fresh from the farm' },
+    { name: 'Dairy', icon: '🥛', subtitle: 'Daily essentials' }
+  ]
+
+  const goHome = () => {
+    setShowCart(false)
+    window.scrollTo({ top: 0, behavior: 'smooth' })
+  }
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      <nav className="bg-white shadow-sm px-6 md:px-16 py-5 flex justify-between items-center">
-        <h1 className="text-2xl font-bold text-green-600">ShopSphere.</h1>
+    <div className="shop-app">
+      <header className="site-header">
+        <div className="header-inner">
+          <button className="brand" onClick={goHome}>
+            <span className="brand-name">ShopSphere<span>.</span></span>
+            <span className="brand-tagline">FRESHNESS, SIMPLIFIED</span>
+          </button>
 
-        <div className="flex gap-3 items-center">
-          <button
-            onClick={() => setShowCart(false)}
-            className="px-4 py-2 rounded-full hover:bg-green-50"
-          >
-            Home
-          </button>
-          <button
-            onClick={() => setShowCart(true)}
-            className="bg-green-600 text-white px-5 py-2 rounded-full"
-          >
-            🛒 Cart ({totalItems})
-          </button>
+          <nav className="header-nav">
+            <button className={!showCart ? 'nav-link active' : 'nav-link'} onClick={goHome}>
+              Home
+            </button>
+            <button className="cart-nav" onClick={() => setShowCart(true)}>
+              <span>Bag</span>
+              <span className="cart-count">{totalItems}</span>
+            </button>
+          </nav>
         </div>
-      </nav>
+      </header>
 
-      {showCart ? (
-        <section className="px-6 md:px-16 py-12">
-          <h2 className="text-3xl font-bold mb-8">Your Shopping Cart</h2>
-
-          {cart.length === 0 ? (
-            <p className="text-gray-500">Your cart is empty.</p>
-          ) : (
-            <div className="grid md:grid-cols-3 gap-8">
-              <div className="md:col-span-2 space-y-4">
-                {cart.map(item => (
-                  <div key={item.id} className="bg-white p-5 rounded-2xl flex justify-between items-center gap-4">
-                    <div>
-                      <h3 className="font-bold">{item.name}</h3>
-                      <p className="text-green-600">₹{item.price}</p>
-                    </div>
-
-                    <div className="flex items-center gap-3">
-                      <button onClick={() => updateQuantity(item.id, -1)} className="px-3 py-1 bg-gray-100 rounded">−</button>
-                      <span>{item.quantity}</span>
-                      <button onClick={() => updateQuantity(item.id, 1)} className="px-3 py-1 bg-gray-100 rounded">+</button>
-                      <button onClick={() => removeFromCart(item.id)} className="text-red-500">Remove</button>
-                    </div>
-                  </div>
-                ))}
+      {!showCart ? (
+        <main>
+          <section className="hero-wrap">
+            <div className="hero-panel">
+              <img className="hero-photo" src={heroImage} alt="Fresh market produce" />
+              <div className="hero-shade" />
+              <div className="hero-content">
+                <span className="eyebrow hero-eyebrow">GOOD FOOD. GOOD DAYS.</span>
+                <h1>Bring home<br /><em>the goodness.</em></h1>
+                <p>Fresh fruits, crisp vegetables and everyday essentials — thoughtfully selected for your table.</p>
+                <a href="#products" className="primary-button">Explore the market <span>↗</span></a>
+                <div className="hero-note">
+                  <span>Fresh picks</span>
+                  <i />
+                  <span>Everyday value</span>
+                  <i />
+                  <span>Easy shopping</span>
+                </div>
               </div>
-
-              <div className="bg-white p-6 rounded-2xl h-fit">
-                <h3 className="text-xl font-bold mb-5">Order Summary</h3>
-                <p className="flex justify-between mb-3">
-                  Items <span>{totalItems}</span>
-                </p>
-                <p className="flex justify-between text-xl font-bold border-t pt-4">
-                  Total <span>₹{totalPrice.toFixed(2)}</span>
-                </p>
-                <button
-                  onClick={() => alert('Checkout demo: Order flow ready for integration.')}
-                  className="w-full mt-6 bg-green-600 text-white py-3 rounded-full"
-                >
-                  Proceed to Checkout
-                </button>
-              </div>
+              <div className="hero-side-note">A FRESHER WAY TO SHOP</div>
             </div>
-          )}
-        </section>
-      ) : (
-        <>
-          <section className="mx-6 md:mx-16 mt-8 rounded-3xl bg-green-50 p-8 md:p-16">
-            <p className="text-green-700 font-semibold mb-4">FRESHNESS DELIVERED TO YOUR DOOR</p>
-            <h2 className="text-4xl md:text-6xl font-bold text-gray-900">
-              Fresh groceries, <span className="text-green-600">happy living.</span>
-            </h2>
-            <p className="text-gray-600 mt-5 text-lg">
-              Shop fresh fruits, vegetables and daily essentials at affordable prices.
-            </p>
-            <a href="#products" className="inline-block mt-7 bg-green-600 text-white px-8 py-3 rounded-full">
-              Shop Now →
-            </a>
           </section>
 
-          <section className="px-6 md:px-16 mt-12">
-            <h2 className="text-3xl font-bold mb-5">Shop by Category</h2>
-            <div className="flex flex-wrap gap-3">
-              {['All', 'Fruits', 'Vegetables', 'Dairy'].map(item => (
+          <section className="content-section category-section">
+            <div className="section-heading">
+              <div>
+                <span className="eyebrow">FIND YOUR FAVOURITES</span>
+                <h2>Shop by category</h2>
+              </div>
+              <p>Everyday goodness, all in one place.</p>
+            </div>
+
+            <div className="category-grid">
+              {categoryItems.map(item => (
                 <button
-                  key={item}
-                  onClick={() => setCategory(item)}
-                  className={`px-6 py-3 rounded-full ${category === item ? 'bg-green-600 text-white' : 'bg-white border'}`}
+                  key={item.name}
+                  onClick={() => {
+                    setCategory(item.name)
+                    document.getElementById('products')?.scrollIntoView({ behavior: 'smooth' })
+                  }}
+                  className={`category-card ${category === item.name ? 'selected' : ''}`}
                 >
-                  {item}
+                  <span className="category-icon">{item.icon}</span>
+                  <span className="category-copy">
+                    <strong>{item.name === 'All' ? 'All products' : item.name}</strong>
+                    <small>{item.subtitle}</small>
+                  </span>
+                  <span className="category-arrow">↗</span>
                 </button>
               ))}
             </div>
           </section>
 
-          <section id="products" className="px-6 md:px-16 mt-12 mb-16">
-            <div className="flex flex-col md:flex-row justify-between gap-5 mb-7">
-              <h2 className="text-3xl font-bold">Popular Products</h2>
-              <input
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-                placeholder="Search products..."
-                className="border rounded-full px-5 py-3 w-full md:w-72"
-              />
+          <section className="content-section products-section" id="products">
+            <div className="section-heading product-heading">
+              <div>
+                <span className="eyebrow">THE MARKET EDIT</span>
+                <h2>Fresh finds for you</h2>
+                <p>Simple ingredients. Better everyday choices.</p>
+              </div>
+              <label className="search-box">
+                <span>⌕</span>
+                <input
+                  value={search}
+                  onChange={e => setSearch(e.target.value)}
+                  placeholder="Search the market..."
+                />
+              </label>
+            </div>
+
+            <div className="filter-row">
+              {['All', 'Fruits', 'Vegetables', 'Dairy'].map(item => (
+                <button
+                  key={item}
+                  onClick={() => setCategory(item)}
+                  className={category === item ? 'filter-chip chosen' : 'filter-chip'}
+                >
+                  {item}
+                </button>
+              ))}
             </div>
 
             {loading ? (
-              <p>Loading products...</p>
+              <div className="message-panel">Preparing your fresh picks...</div>
+            ) : error ? (
+              <div className="message-panel">
+                <strong>Products could not be loaded.</strong>
+                <span>Start the FastAPI backend and refresh this page.</span>
+              </div>
+            ) : filteredProducts.length === 0 ? (
+              <div className="message-panel">
+                <strong>No products found</strong>
+                <span>Try a different search or category.</span>
+              </div>
             ) : (
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+              <div className="product-grid">
                 {filteredProducts.map(product => (
-                  <div key={product.id} className="bg-white p-5 rounded-2xl shadow-sm">
-                    <img
-                      src={product.image_url}
-                      alt={product.name}
-                      className="w-full h-48 object-cover rounded-xl"
-                    />
-                    <div className="flex justify-between mt-4">
-                      <p className="text-green-600">{product.category}</p>
-                      <button onClick={() => toggleWishlist(product)} className="text-xl">
-                        {wishlist.some(item => item.id === product.id) ? '❤️' : '♡'}
-                      </button>
-                    </div>
-                    <h3 className="text-lg font-bold mt-2">{product.name}</h3>
-                    <p className="text-gray-500 text-sm mt-1">{product.description}</p>
-                    <div className="flex justify-between items-center mt-5">
-                      <p className="text-xl font-bold">₹{product.price}</p>
+                  <article className="product-card" key={product.id}>
+                    <div className="product-image-wrap">
+                      <img src={product.image_url} alt={product.name} className="product-image" />
+                      <span className="product-category">{product.category}</span>
                       <button
-                        onClick={() => addToCart(product)}
-                        className="bg-green-600 text-white px-5 py-2 rounded-full"
+                        className="wishlist-button"
+                        onClick={() => toggleWishlist(product)}
+                        aria-label="Toggle wishlist"
                       >
-                        Add to Cart
+                        {wishlist.some(item => item.id === product.id) ? '♥' : '♡'}
                       </button>
                     </div>
-                    <p className="text-xs text-gray-400 mt-3">Stock: {product.stock}</p>
-                  </div>
+                    <div className="product-info">
+                      <div>
+                        <h3>{product.name}</h3>
+                        <p className="product-description">{product.description}</p>
+                      </div>
+                      <div className="product-bottom">
+                        <div>
+                          <strong className="product-price">₹{product.price}</strong>
+                          <small className="stock-label">{product.stock} in stock</small>
+                        </div>
+                        <button
+                          className="add-button"
+                          onClick={() => addToCart(product)}
+                          disabled={product.stock < 1}
+                        >
+                          {product.stock < 1 ? 'Sold out' : 'Add to bag +'}
+                        </button>
+                      </div>
+                    </div>
+                  </article>
                 ))}
               </div>
             )}
           </section>
-        </>
+        </main>
+      ) : (
+        <main className="cart-page">
+          <button className="back-link" onClick={goHome}>← Continue shopping</button>
+          <div className="cart-title">
+            <span className="eyebrow">YOUR SELECTION</span>
+            <h1>Your shopping bag</h1>
+            <p>Review your items before you check out.</p>
+          </div>
+
+          {cart.length === 0 ? (
+            <div className="empty-cart">
+              <span className="empty-icon">◇</span>
+              <h2>Your bag is waiting</h2>
+              <p>Discover something fresh for your everyday table.</p>
+              <button className="primary-button" onClick={goHome}>Explore products <span>↗</span></button>
+            </div>
+          ) : (
+            <div className="cart-layout">
+              <div className="cart-items">
+                {cart.map(item => (
+                  <article className="cart-item" key={item.id}>
+                    <img src={item.image_url} alt={item.name} />
+                    <div className="cart-item-details">
+                      <span className="eyebrow">{item.category}</span>
+                      <h3>{item.name}</h3>
+                      <strong>₹{item.price}</strong>
+                    </div>
+                    <div className="quantity-control">
+                      <button onClick={() => updateQuantity(item.id, -1)}>−</button>
+                      <span>{item.quantity}</span>
+                      <button
+                        onClick={() => updateQuantity(item.id, 1)}
+                        disabled={item.quantity >= item.stock}
+                      >+</button>
+                    </div>
+                    <button className="remove-button" onClick={() => removeFromCart(item.id)}>Remove</button>
+                  </article>
+                ))}
+              </div>
+
+              <aside className="order-summary">
+                <span className="eyebrow">YOUR ORDER</span>
+                <h2>Order summary</h2>
+                <div className="summary-line"><span>Items ({totalItems})</span><span>₹{totalPrice.toFixed(2)}</span></div>
+                <div className="summary-line"><span>Delivery</span><span className="free-label">Free</span></div>
+                <div className="summary-total"><span>Total</span><strong>₹{totalPrice.toFixed(2)}</strong></div>
+                <button className="checkout-button" onClick={() => alert('Checkout demo: Payment integration is not enabled yet.')}>
+                  Continue to checkout <span>→</span>
+                </button>
+                <p className="demo-note">Demo checkout · Payment integration not enabled</p>
+              </aside>
+            </div>
+          )}
+        </main>
       )}
 
-      <footer className="bg-gray-900 text-white text-center py-7">
-        <h2 className="text-xl font-bold text-green-400">ShopSphere.</h2>
-        <p className="text-gray-400 mt-2">Fresh choices. Happy shopping.</p>
-        <p className="text-gray-500 text-sm mt-4">© 2026 ShopSphere. All rights reserved.</p>
+      <footer className="site-footer">
+        <div className="footer-inner">
+          <div className="footer-brand">
+            <span className="brand-name">ShopSphere<span>.</span></span>
+            <p>A little more freshness in<br />everyday living.</p>
+          </div>
+          <div className="footer-column">
+            <strong>Explore</strong>
+            <button onClick={goHome}>Home</button>
+            <a href="#products" onClick={() => setShowCart(false)}>Shop products</a>
+          </div>
+          <div className="footer-column">
+            <strong>Our promise</strong>
+            <p>Thoughtful everyday essentials.<br />Simple shopping, made fresh.</p>
+          </div>
+        </div>
+        <div className="footer-bottom">© 2026 ShopSphere. All rights reserved.</div>
       </footer>
     </div>
   )
